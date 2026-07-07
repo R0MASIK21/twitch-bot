@@ -16,7 +16,7 @@ http.createServer((req, res) => {
 
 // 3. ПІДКЛЮЧЕННЯ ДО ТВІЧА
 const client = new tmi.Client({
-    identity: { username: 'r0masik_bot', password: 'oauth:' },
+    identity: { username: 'r0masik_bot', password: 'oauth:v8wefxwrmrp9aee3774ogexiijsl6l' },
     channels: [ 'r0masik_' ]
 });
 
