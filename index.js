@@ -31,8 +31,11 @@ const client = new tmi.Client({
 // ⏱️ АВТО-НАРАХУВАННЯ БАЛІВ
 setInterval(async () => {
     try {
+        // Отримуємо чатерів через клієнт правильно
         const chatters = await client.chatters(CHANNEL_NAME);
+        // tmi.js повертає об'єкт, де чатери розбиті по ролях
         const allViewers = [...chatters.broadcaster, ...chatters.moderators, ...chatters.viewers];
+        
         for (const viewer of allViewers) {
             if (!db[viewer]) db[viewer] = 0;
             db[viewer] += POINTS_PER_INTERVAL;
