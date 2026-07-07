@@ -45,12 +45,70 @@ module.exports = function handleCommands(client, channel, tags, message, command
         client.say(channel, `🏆 Топ багатіїв: ${topText}`);
     }
 
-    // 🎉 СТАРТ РОЗІГРАШУ (АДМІНКА)
+    // 🎉 СТАРТ РОЗІГРАШУ (АДМІНКА) - АВТОМАТИЧНИЙ З РАНДОМНОЮ СУМОЮ
     if (command === '!розіграш') {
         if (!isMod) return; 
+        if (giveawayActive) return; // Щоб не запустити два розіграші одночасно
+
+        let pot = parseInt(args[1]);
+        
+        // Якщо суму не вказано, бот бере рандом до 1 мільйона балів!
+        if (isNaN(pot) || pot <= 0) {
+            const minPoints = 1;       // Мінімалка
+            const maxPoints = 10000000000000000000000000000000000000000000;   // 1 МІЛЬЙОН (можеш дописати сюди ще нулів, якщо треба)
+            pot = Math.floor(Math.random() * (maxPoints - minPoints + 1)) + minPoints;
+        }
+        
         giveawayActive = true;
-        participants = []; // Очищаємо список перед новим розіграшем
-        client.say(channel, `Увага! Розіграш розпочато! 🎉 Пишіть !го у чат, щоб взяти участь!`);
+        participants = []; 
+        
+        client.say(channel, `Увага! Розіграш на ${pot} балів розпочато! 🎉 Пишіть !го у чат, у вас є 30 секунд!`);
+
+        // Сповіщення половини часу
+        setTimeout(() => {
+            if (giveawayActive) {
+                client.say(channel, `⏳ Залишилося 15 секунд! Хто ще не написав !го - поспішайте!`);
+            }
+        }, 15000);
+
+        // Сповіщення перед самим кінцем
+        setTimeout(() => {
+            if (giveawayActive) {
+                client.say(channel, `⏱️ 5 секунд до кінця розіграшу!`);
+            }
+        }, 25000);
+
+        // Автоматичний кінець через 30 секунд
+        setTimeout(() => {
+            if (!giveawayActive) return;
+            giveawayActive = false;
+
+            if (participants.length === 0) {
+                client.say(channel, `Ніхто не написав !го. Розіграш скасовано 😢`);
+                return;
+            }
+
+            // Рандомний режим фіналу: 50% шанс на все одному або 50% поділити на всіх
+            let splitMode = Math.random() < 0.5;
+
+            if (splitMode && participants.length > 1) {
+                let share = Math.floor(pot / participants.length);
+                participants.forEach(p => {
+                    if (!db[p]) db[p] = 0;
+                    db[p] += share;
+                });
+                saveDb();
+                client.say(channel, `🎉 Розіграш завершено! ${participants.length} учасників ділять виграш і отримують по ${share} балів! 🤝`);
+            } else {
+                const winner = participants[Math.floor(Math.random() * participants.length)];
+                if (!db[winner]) db[winner] = 0;
+                db[winner] += pot;
+                saveDb();
+                client.say(channel, `🎉 Розіграш завершено! Переможець: @${winner}! Він забирає всі ${pot} балів! 🎁`);
+            }
+            participants = []; 
+        }, 30000); 
+    
     }
 
     // 🙋‍♂️ УЧАСТЬ У РОЗІГРАШІ
