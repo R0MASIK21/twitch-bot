@@ -15,7 +15,7 @@ const client = new tmi.Client({
         username: 'r0masik_bot',
         password: 'oauth:px1az0p6jhcpdc7587igvcngvmj6hr' // Твій токен
     },
-    channels: ['r0masik_bot'] // Заміни на свій канал, якщо треба
+    channels: ['r0masik_'] // Заміни на свій канал, якщо треба
 });
 
 client.connect();
