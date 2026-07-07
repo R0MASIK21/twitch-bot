@@ -3,18 +3,16 @@ const tmi = require('tmi.js');
 const fs = require('fs');
 const http = require('http');
 
-// ОБМАНКА ДЛЯ RENDER
 http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end('Бот працює!');
 }).listen(process.env.PORT || 3000);
 
 const client = new tmi.Client({
-    identity: { username: 'r0masik_bot', password: 'oauth:v8wefxwrmrp9aee3774ogexiijsl6l' },
+    identity: { username: 'r0masik_bot', password: 'oauth:glzobz1i8zc88efm3q56wp2wc35vp8rib2q0t2mlufq7h56qzp' },
     channels: [ 'r0masik_' ]
 });
 
-// Завантаження бази
 let db = fs.existsSync('db.json') ? JSON.parse(fs.readFileSync('db.json', 'utf8')) : {};
 function saveDb() { fs.writeFileSync('db.json', JSON.stringify(db, null, 2)); }
 
@@ -27,25 +25,20 @@ client.on('message', async (channel, tags, message, self) => {
     const command = args[0].toLowerCase();
     const isMod = tags.mod || (tags.badges && tags.badges.broadcaster === '1');
 
-    // 1. АВТО-НАРАХУВАННЯ (за активність, якщо не команда)
+    // 1. АВТО-НАРАХУВАННЯ
     if (!message.startsWith('!')) {
         if (!db[sender]) db[sender] = 0;
         db[sender] += 1;
         saveDb();
     }
 
-    // 2. СИСТЕМНІ КОМАНДИ (Бали, Рулетка, Топ, Дати, Розіграш)
-    if (['!бали', '!рулетка', '!топ', '!дати', '!розіграш', '!го'].includes(command)) {
+    // 2. СИСТЕМНІ КОМАНДИ (Бали, Рулетка, Топ, Дати, Розіграш, Го, На)
+    if (['!бали', '!рулетка', '!топ', '!дати', '!розіграш', '!го', '!на'].includes(command)) {
         require('./system_commands.js')(client, channel, sender, command, args, db, saveDb, isMod);
     }
     
     // 3. ФАН-КОМАНДИ (Пеніс, Вкрасти, Пиво)
     if (['!пеніс', '!вкрасти', '!пиво'].includes(command)) {
         require('./fun_commands.js')(client, channel, sender, command, args, db, saveDb);
-    }
-
-    // 4. ПЕРЕДАЧА БАЛІВ (Окремо для всіх)
-    if (command === '!на') {
-        require('./commands/na.js')(client, channel, sender, args, db, saveDb);
     }
 });
