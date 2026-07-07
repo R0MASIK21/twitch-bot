@@ -13,7 +13,7 @@ http.createServer((req, res) => {
 }).listen(process.env.PORT || 3000);
 
 const BOT_USERNAME = 'r0masik_bot'; 
-const OAUTH_TOKEN = 'oauth:glzobz1i8zc88efm3q56wp2wc35vp8rib2q0t2mlufq7h56qzp'; 
+const OAUTH_TOKEN = 'oauth:v8wefxwrmrp9aee3774ogexiijsl6l'; 
 const CHANNEL_NAME = 'r0masik_'; 
 
 // Завантаження бази
