@@ -64,21 +64,7 @@ module.exports = function handleCommands(client, channel, tags, message, command
         
         client.say(channel, `Увага! Розіграш на ${pot} балів розпочато! 🎉 Пишіть !го у чат, у вас є 30 секунд!`);
 
-        // Сповіщення половини часу
-        setTimeout(() => {
-            if (giveawayActive) {
-                client.say(channel, `⏳ Залишилося 15 секунд! Хто ще не написав !го - поспішайте!`);
-            }
-        }, 15000);
-
-        // Сповіщення перед самим кінцем
-        setTimeout(() => {
-            if (giveawayActive) {
-                client.say(channel, `⏱️ 5 секунд до кінця розіграшу!`);
-            }
-        }, 25000);
-
-        // Автоматичний кінець через 30 секунд
+       // Автоматичний кінець через 30 секунд
         setTimeout(() => {
             if (!giveawayActive) return;
             giveawayActive = false;
@@ -98,7 +84,11 @@ module.exports = function handleCommands(client, channel, tags, message, command
                     db[p] += share;
                 });
                 saveDb();
-                client.say(channel, `🎉 Розіграш завершено! ${participants.length} учасників ділять виграш і отримують по ${share} балів! 🤝`);
+                
+                // Збираємо ніки всіх, хто виграв, в один рядок
+                let winnersList = participants.map(p => '@' + p).join(', ');
+                
+                client.say(channel, `🎉 Розіграш завершено! Переможці: ${winnersList}! Ви ділите виграш і отримуєте по ${share} балів кожний! 🤝`);
             } else {
                 const winner = participants[Math.floor(Math.random() * participants.length)];
                 if (!db[winner]) db[winner] = 0;
@@ -107,7 +97,7 @@ module.exports = function handleCommands(client, channel, tags, message, command
                 client.say(channel, `🎉 Розіграш завершено! Переможець: @${winner}! Він забирає всі ${pot} балів! 🎁`);
             }
             participants = []; 
-        }, 30000); 
+        }, 30000);
     
     }
 
