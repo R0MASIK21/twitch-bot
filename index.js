@@ -3,7 +3,6 @@ const tmi = require('tmi.js');
 const fs = require('fs');
 const http = require('http');
 
-// Підключаємо наш файл із командами
 const handleCommands = require('./commands.js'); 
 
 // ОБМАНКА ДЛЯ RENDER
@@ -33,17 +32,36 @@ const client = new tmi.Client({
 
 client.connect().catch(console.error);
 
+// ==========================================
+// ⏱️ АВТОР-НАРАХУВАННЯ ЗА ЧАС
+// ==========================================
+const INTERVAL_MINUTES = 2;      // Кожні скільки хвилин нараховувати
+const POINTS_PER_INTERVAL = 15;  // Скільки балів давати
+
+// Список тих, хто засвітився на стрімі
+const activeViewers = new Set();
+
+setInterval(() => {
+    if (activeViewers.size > 0) {
+        activeViewers.forEach(viewer => {
+            if (!db[viewer]) db[viewer] = 0;
+            db[viewer] += POINTS_PER_INTERVAL;
+        });
+        saveDb();
+        console.log(`Нараховано по ${POINTS_PER_INTERVAL} балів за ${INTERVAL_MINUTES} хв!`);
+    }
+}, INTERVAL_MINUTES * 60 * 1000);
+// ==========================================
+
 client.on('message', async (channel, tags, message, self) => {
     if (self) return;
     const sender = tags.username;
     const args = message.trim().split(' ');
     const command = args[0].toLowerCase();
 
-    // Запис балів за активність (тихий)
-    if (!db[sender]) db[sender] = 0;
-    db[sender] += 1;
-    saveDb();
+    // Як тільки людина щось написала - бот розуміє, що вона на стрімі, і починає сипати бали за час
+    activeViewers.add(sender);
 
-    // Передаємо всі дані у файл commands.js, щоб команди виконувалися там
+    // Передаємо логіку команд у commands.js
     handleCommands(client, channel, tags, message, command, args, db, saveDb, sender);
 });
