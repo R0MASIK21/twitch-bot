@@ -72,8 +72,8 @@ client.on('message', async (channel, tags, message, self) => {
 
     // 🥷 ВКРАСТИ (ФІНАЛЬНА ВЕРСІЯ)
     if (command === '!вкрасти') {
-        const jailChance = 0.35;
-        const timeoutSec = 60;
+        const jailChance = 0.50;
+        const timeoutSec = 10;
         const penaltyPoints = 50;
         const lootTable = {
             'годинник⌚️': 200, 'пачку папіросів🚬': 50, 'тіліфон📱': 500, 'бутерброд🥪': 30,
