@@ -1,7 +1,7 @@
 // @ts-nocheck
 const tmi = require('tmi.js');
 const fs = require('fs');
-const http = requre('http');
+const http = require('http');
 
 // 1. ЗАВАНТАЖУЄМО БАЗУ НА САМОМУ ПОЧАТКУ
 let db = fs.existsSync('db.json') ? JSON.parse(fs.readFileSync('db.json', 'utf8')) : {};
@@ -16,7 +16,7 @@ http.createServer((req, res) => {
 
 // 3. ПІДКЛЮЧЕННЯ ДО ТВІЧА
 const client = new tmi.Client({
-    identity: { username: 'r0masik_bot', password: 'oauth:v8wefxwrmrp9aee3774ogexiijsl6l' },
+    identity: { username: 'r0masik_bot', password: 'oauth:' },
     channels: [ 'r0masik_' ]
 });
 
