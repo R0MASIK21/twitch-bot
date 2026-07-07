@@ -1,29 +1,21 @@
 // @ts-nocheck
 const tmi = require('tmi.js');
 const fs = require('fs');
-const http = require('http'); // Підключаємо модуль для "сайту"
+const http = require('http');
 
 // ==========================================
-// 🌐 ОБМАНКА ДЛЯ RENDER (ЩОБ ВІН ДУМАВ, ЩО ЦЕ САЙТ)
+// 🌐 ОБМАНКА ДЛЯ RENDER
 // ==========================================
 http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Твій бот працює, а Render думає, що це сайт!');
+    res.end('Твій бот працює!');
 }).listen(process.env.PORT || 3000);
 // ==========================================
 
 const BOT_USERNAME = 'r0masik_bot'; 
-const OAUTH_TOKEN = 'oauth:v8wefxwrmrp9aee3774ogexiijsl6l'; 
-const CHANNEL_NAME = 'r0masik_'; // ВИПРАВЛЕНО НА ТВІЙ НІК
+const OAUTH_TOKEN = 'oauth:glzobz1i8zc88efm3q56wp2wc35vp8rib2q0t2mlufq7h56qzp'; 
+const CHANNEL_NAME = 'r0masik_'; 
 
-// ==========================================
-// ⚙️ НАЛАШТУВАННЯ АВТО-НАРАХУВАННЯ:
-// ==========================================
-const INTERVAL_MINUTES = 2;      
-const POINTS_PER_INTERVAL = 15;  
-// ==========================================
-
-// Завантаження бази
 let db = {};
 if (fs.existsSync('db.json')) {
     db = JSON.parse(fs.readFileSync('db.json', 'utf8'));
@@ -38,21 +30,6 @@ const client = new tmi.Client({
     channels: [ CHANNEL_NAME ]
 });
 
-// ⏱️ АВТО-НАРАХУВАННЯ БАЛІВ (ЗАКОМЕНТОВАНО, БО ТВІЧ ЗАКРИВ ЦЮ ФУНКЦІЮ І ВОНА КРАШИТЬ БОТА)
-/*
-setInterval(async () => {
-    try {
-        const chatters = await client.chatters(CHANNEL_NAME);
-        const allViewers = [...chatters.broadcaster, ...chatters.moderators, ...chatters.viewers];
-        for (const viewer of allViewers) {
-            if (!db[viewer]) db[viewer] = 0;
-            db[viewer] += POINTS_PER_INTERVAL;
-        }
-        saveDb();
-    } catch (err) { console.error("Помилка нарахування:", err); }
-}, INTERVAL_MINUTES * 60 * 1000);
-*/
-
 client.connect().catch(console.error);
 
 client.on('message', async (channel, tags, message, self) => {
@@ -61,19 +38,96 @@ client.on('message', async (channel, tags, message, self) => {
     const args = message.trim().split(' ');
     const command = args[0].toLowerCase();
 
+    // Перевірка, чи є людина модератором або стрімером
+    const isMod = tags.mod || (tags.badges && tags.badges.broadcaster === '1');
+
     // Запис балів за активність (тихий)
     if (!db[sender]) db[sender] = 0;
     db[sender] += 1;
     saveDb();
 
+    // 💰 БАЛИ
     if (command === '!бали') {
         client.say(channel, `@${sender}, у тебе ${db[sender]} балів 💵`);
     }
 
-    // 🥷 ВКРАСТИ (ФІНАЛЬНА ВЕРСІЯ)
+    // 🏆 ТОП
+    if (command === '!топ') {
+        const sortedDb = Object.entries(db).sort((a, b) => b[1] - a[1]).slice(0, 5);
+        if (sortedDb.length === 0) {
+            client.say(channel, `Топ поки порожній!`);
+            return;
+        }
+        let topText = sortedDb.map((entry, index) => `${index + 1}. ${entry[0]} (${entry[1]})`).join(' | ');
+        client.say(channel, `🏆 Топ багатіїв: ${topText}`);
+    }
+
+    // 🎉 РОЗІГРАШ
+    if (command === '!розіграш') {
+        if (!isMod) return; // Тільки для модерів/стрімера, щоб чат не спамив
+        client.say(channel, `Увага! Розіграш розпочато! 🎉 Пишіть у чат, щоб взяти участь!`);
+    }
+
+    // 💸 ДАТИ БАЛИ (АДМІНКА: тільки стрімер або модератор)
+    if (command === '!дати') {
+        if (!isMod) {
+            client.say(channel, `@${sender}, ця команда тільки для модераторів та стрімера! 🛑`);
+            return;
+        }
+
+        let amount = parseInt(args[1]);
+        let target = (args[2] || '').replace(/@/g, '').toLowerCase();
+
+        if (isNaN(amount)) {
+            amount = parseInt(args[2]);
+            target = (args[1] || '').replace(/@/g, '').toLowerCase();
+        }
+
+        if (isNaN(amount) || amount <= 0 || !target) {
+            client.say(channel, `@${sender}, неправильний формат! Пиши: !дати 100 @нік`);
+            return;
+        }
+        
+        // Адміни просто малюють бали з повітря
+        if (!db[target]) db[target] = 0;
+        db[target] += amount;
+        saveDb();
+
+        client.say(channel, `@${sender} відсипав ${amount} балів для @${target}! 💸`);
+    }
+
+    // 🤝 ПЕРЕДАТИ СВОЇ БАЛИ (Для всіх глядачів)
+    if (command === '!на') {
+        let amount = parseInt(args[1]);
+        let target = (args[2] || '').replace(/@/g, '').toLowerCase();
+
+        if (isNaN(amount)) {
+            amount = parseInt(args[2]);
+            target = (args[1] || '').replace(/@/g, '').toLowerCase();
+        }
+
+        if (isNaN(amount) || amount <= 0 || !target) {
+            client.say(channel, `@${sender}, неправильний формат! Пиши: !на 100 @нік`);
+            return;
+        }
+
+        if (db[sender] < amount) {
+            client.say(channel, `@${sender}, у тебе недостатньо балів! ❌`);
+            return;
+        }
+
+        db[sender] -= amount;
+        if (!db[target]) db[target] = 0;
+        db[target] += amount;
+        saveDb();
+
+        client.say(channel, `@${sender} передав ${amount} балів глядачу @${target}! 🤝`);
+    }
+
+    // 🥷 ВКРАСТИ
     if (command === '!вкрасти') {
-        const jailChance = 0.50;
-        const timeoutSec = 10;
+        const jailChance = 0.35;
+        const timeoutSec = 30; // 30 секунд таймауту
         const penaltyPoints = 50;
         const lootTable = {
             'годинник⌚️': 200, 'пачку папіросів🚬': 50, 'тіліфон📱': 500, 'бутерброд🥪': 30,
@@ -102,7 +156,13 @@ client.on('message', async (channel, tags, message, self) => {
             db[sender] = Math.max(0, db[sender] - penaltyPoints);
             saveDb();
             client.say(channel, `@${sender} Одягнув латексні рукавички, поліз до ${targetText}, але його зловили! 👮‍♂️`);
-            setTimeout(() => client.timeout(channel, sender, timeoutSec, "Спійманий"), 850);
+            
+            // Запобіжник для стрімера/модератора
+            setTimeout(() => {
+                client.timeout(channel, sender, timeoutSec, "Спійманий на гарячому")
+                    .catch(err => console.log("Спроба дати таймаут стрімеру/модеру проігнорована."));
+            }, 850);
+            
             setTimeout(() => client.say(channel, `Злодюгу @${sender} запакували на ${timeoutSec} сек і здерли штраф ${penaltyPoints} балів! ⚖️`), 1700);
         } else {
             db[sender] += reward;
