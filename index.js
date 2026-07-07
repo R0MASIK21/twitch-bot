@@ -36,12 +36,12 @@ client.on('message', async (channel, tags, message, self) => {
 
     // 2. СИСТЕМНІ КОМАНДИ (Бали, Рулетка, Топ, Дати, Розіграш)
     if (['!бали', '!рулетка', '!топ', '!дати', '!розіграш', '!го'].includes(command)) {
-        require('./commands/system_commands.js')(client, channel, sender, command, args, db, saveDb, isMod);
+        require('./system_commands.js')(client, channel, sender, command, args, db, saveDb, isMod);
     }
     
     // 3. ФАН-КОМАНДИ (Пеніс, Вкрасти, Пиво)
     if (['!пеніс', '!вкрасти', '!пиво'].includes(command)) {
-        require('./commands/fun_commands.js')(client, channel, sender, command, args, db, saveDb);
+        require('./fun_commands.js')(client, channel, sender, command, args, db, saveDb);
     }
 
     // 4. ПЕРЕДАЧА БАЛІВ (Окремо для всіх)
