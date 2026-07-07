@@ -45,7 +45,7 @@ module.exports = function handleCommands(client, channel, tags, message, command
         client.say(channel, `🏆 Топ багатіїв: ${topText}`);
     }
 
-    // 🎉 СТАРТ РОЗІГРАШУ (АДМІНКА) - АВТОМАТИЧНИЙ З РАНДОМНОЮ СУМОЮ
+    // 🎉 СТАРТ РОЗІГРАШУ (АДМІНКА) - ПОВНА ВЕРСІЯ З ТАЙМЕРАМИ ТА ІМЕНАМИ
     if (command === '!розіграш') {
         if (!isMod) return; 
         if (giveawayActive) return; // Щоб не запустити два розіграші одночасно
@@ -54,8 +54,8 @@ module.exports = function handleCommands(client, channel, tags, message, command
         
         // Якщо суму не вказано, бот бере рандом до 1 мільйона балів!
         if (isNaN(pot) || pot <= 0) {
-            const minPoints = 1;       // Мінімалка
-            const maxPoints = 10000000000000000000000000000000000000000000;   // 1 МІЛЬЙОН (можеш дописати сюди ще нулів, якщо треба)
+            const minPoints = 100;
+            const maxPoints = 1000000;
             pot = Math.floor(Math.random() * (maxPoints - minPoints + 1)) + minPoints;
         }
         
@@ -64,7 +64,21 @@ module.exports = function handleCommands(client, channel, tags, message, command
         
         client.say(channel, `Увага! Розіграш на ${pot} балів розпочато! 🎉 Пишіть !го у чат, у вас є 30 секунд!`);
 
-       // Автоматичний кінець через 30 секунд
+        // Сповіщення половини часу
+        setTimeout(() => {
+            if (giveawayActive) {
+                client.say(channel, `⏳ Залишилося 15 секунд! Хто ще не написав !го - поспішайте!`);
+            }
+        }, 15000);
+
+        // Сповіщення перед самим кінцем
+        setTimeout(() => {
+            if (giveawayActive) {
+                client.say(channel, `⏱️ 5 секунд до кінця розіграшу!`);
+            }
+        }, 25000);
+
+        // Автоматичний кінець через 30 секунд
         setTimeout(() => {
             if (!giveawayActive) return;
             giveawayActive = false;
@@ -97,7 +111,7 @@ module.exports = function handleCommands(client, channel, tags, message, command
                 client.say(channel, `🎉 Розіграш завершено! Переможець: @${winner}! Він забирає всі ${pot} балів! 🎁`);
             }
             participants = []; 
-        }, 30000);
+        }, 30000); 
     
     }
 
