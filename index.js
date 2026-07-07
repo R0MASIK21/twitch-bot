@@ -9,7 +9,7 @@ http.createServer((req, res) => {
 }).listen(process.env.PORT || 3000);
 
 const client = new tmi.Client({
-    identity: { username: 'r0masik_bot', password: 'oauth:glzobz1i8zc88efm3q56wp2wc35vp8rib2q0t2mlufq7h56qzp' },
+    identity: { username: 'r0masik_bot', password: 'oauth:v8wefxwrmrp9aee3774ogexiijsl6l' },
     channels: [ 'r0masik_' ]
 });
 
