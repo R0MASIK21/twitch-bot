@@ -28,14 +28,12 @@ const client = new tmi.Client({
     channels: [ CHANNEL_NAME ]
 });
 
-// ⏱️ АВТО-НАРАХУВАННЯ БАЛІВ
+// ⏱️ АВТО-НАРАХУВАННЯ БАЛІВ (ЗАКОМЕНТОВАНО, ЩОБ БОТ НЕ ПАДАВ)
+/*
 setInterval(async () => {
     try {
-        // Отримуємо чатерів через клієнт правильно
         const chatters = await client.chatters(CHANNEL_NAME);
-        // tmi.js повертає об'єкт, де чатери розбиті по ролях
         const allViewers = [...chatters.broadcaster, ...chatters.moderators, ...chatters.viewers];
-        
         for (const viewer of allViewers) {
             if (!db[viewer]) db[viewer] = 0;
             db[viewer] += POINTS_PER_INTERVAL;
@@ -43,7 +41,7 @@ setInterval(async () => {
         saveDb();
     } catch (err) { console.error("Помилка нарахування:", err); }
 }, INTERVAL_MINUTES * 60 * 1000);
-
+*/
 client.connect().catch(console.error);
 
 client.on('message', async (channel, tags, message, self) => {
