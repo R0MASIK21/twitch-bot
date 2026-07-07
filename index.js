@@ -3,7 +3,7 @@ const tmi = require('tmi.js');
 const fs = require('fs');
 
 const BOT_USERNAME = 'r0masik_bot'; 
-const OAUTH_TOKEN = 'oauth:glzobz1i8zc88efm3q56wp2wc35vp8rib2q0t2mlufq7h56qzp'; 
+const OAUTH_TOKEN = 'oauth:px1az0p6jhcpdc7587igvcngvmj6hr'; 
 const CHANNEL_NAME = 'r0masik'; 
 
 // ==========================================
