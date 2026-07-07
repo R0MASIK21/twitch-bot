@@ -1,7 +1,7 @@
 // @ts-nocheck
 const tmi = require('tmi.js');
 const fs = require('fs');
-const http = require('http');
+const http = requre('http');
 
 // 1. ЗАВАНТАЖУЄМО БАЗУ НА САМОМУ ПОЧАТКУ
 let db = fs.existsSync('db.json') ? JSON.parse(fs.readFileSync('db.json', 'utf8')) : {};
