@@ -2,19 +2,17 @@ let giveawayActive = false;
 let participants = [];
 let prize = 0;
 let giveawayTimer = null;
+let winChance = 50; // Шанс виграти за замовчуванням (якщо ти не вкажеш)
 
 module.exports = function(client, channel, sender, command, args, db, saveDb, isMod) {
     
-    // Команда для адміна/модера: почати розіграш або зупинити
     if (command === '!розіграш' && isMod) {
         
-        // Дострокова зупинка розіграшу (якщо треба вибрати переможця прямо зараз)
+        // ДОСТРОКОВА ЗУПИНКА ТА РОЗПОДІЛ ПРИЗУ
         if (args[1] === 'стоп') {
             if (!giveawayActive) {
                 return client.say(channel, "Розіграш зараз не проводиться.");
             }
-            
-            // Зупиняємо автоматичний таймер
             if (giveawayTimer) clearTimeout(giveawayTimer);
             giveawayActive = false;
 
@@ -22,22 +20,36 @@ module.exports = function(client, channel, sender, command, args, db, saveDb, is
                 return client.say(channel, "Розіграш зупинено. Ніхто не брав участь 😔");
             }
             
-            // Вибираємо переможця
-            let winner = participants[Math.floor(Math.random() * participants.length)];
-            db[winner] = (db[winner] || 0) + prize;
+            // Відбираємо переможців за шансом
+            let winners = participants.filter(() => (Math.random() * 100) <= winChance);
+            
+            if (winners.length === 0) {
+                participants = [];
+                return client.say(channel, `🛑 Розіграш зупинено! Ніхто не зміг виграти (шанс був ${winChance}%). Приз згорів! 🔥`);
+            }
+
+            // Ділимо приз
+            let share = Math.floor(prize / winners.length);
+            for (let w of winners) {
+                db[w] = (db[w] || 0) + share;
+            }
             saveDb();
             
-            participants = []; // Очищаємо список
-            return client.say(channel, `🛑 Достроковий стоп! Переможець: @${winner}! Він отримує ${prize} 💵 балів!`);
+            let winnersText = winners.length > 5 ? `${winners.length} щасливчиків` : winners.map(w => `@${w}`).join(', ');
+            participants = []; 
+            return client.say(channel, `🛑 Стоп! Переможці: ${winnersText}! Кожен отримує по ${share} 💵 балів!`);
         }
 
-        // Старт розіграшу: !розіграш [сума] [час_у_секундах]
+        // СТАРТ РОЗІГРАШУ
         let amount = parseInt(args[1]);
-        let duration = parseInt(args[2]) || 60; // Якщо час не вказали, ставимо 60 секунд за замовчуванням
+        let duration = parseInt(args[2]) || 60; // Час (дефолт 60 сек)
+        let chance = parseInt(args[3]) || 50;   // Шанс виграшу (дефолт 50%)
 
         if (isNaN(amount) || amount <= 0) {
-            return client.say(channel, "Вкажи суму і час у секундах (наприклад: !розіграш 1000 60) або !розіграш стоп");
+            return client.say(channel, "Формат: !розіграш [сума] [секунди] [шанс%]. Наприклад: !розіграш 1000 60 30");
         }
+        if (chance < 1) chance = 1;
+        if (chance > 100) chance = 100;
 
         if (giveawayActive) {
             return client.say(channel, "Розіграш вже йде!");
@@ -46,36 +58,50 @@ module.exports = function(client, channel, sender, command, args, db, saveDb, is
         giveawayActive = true;
         participants = [];
         prize = amount;
+        winChance = chance;
         
-        client.say(channel, `🎁 Почався розіграш на ${prize} 💵 балів! У вас є ${duration} секунд. Пишіть !го в чат, щоб брати участь!`);
+        client.say(channel, `🎁 Банк: ${prize} 💵! Час: ${duration} сек. Шанс перемоги: ${winChance}%. Приз поділять ті, кому пощастить! Пишіть !го`);
 
-        // Автоматичний таймер, який сам закінчить розіграш
+        // АВТОМАТИЧНИЙ ФІНАЛ
         giveawayTimer = setTimeout(() => {
-            if (!giveawayActive) return; // Якщо вже зупинили вручну, нічого не робимо
-            
+            if (!giveawayActive) return; 
             giveawayActive = false;
+            
             if (participants.length === 0) {
                 return client.say(channel, "⏱️ Час вийшов! Але ніхто так і не взяв участь 😔");
             }
 
-            let winner = participants[Math.floor(Math.random() * participants.length)];
-            db[winner] = (db[winner] || 0) + prize;
+            // Відбираємо переможців
+            let winners = participants.filter(() => (Math.random() * 100) <= winChance);
+
+            if (winners.length === 0) {
+                participants = [];
+                return client.say(channel, `⏱️ Час вийшов! Халепа, ніхто не виграв (шанс був ${winChance}%). Всі ${prize} 💵 згоріли! 🔥`);
+            }
+
+            // Ділимо банк порівну
+            let share = Math.floor(prize / winners.length);
+            for (let w of winners) {
+                db[w] = (db[w] || 0) + share;
+            }
             saveDb();
             
-            participants = [];
-            client.say(channel, `🎉 ЧАС ВИЙШОВ! Переможець розіграшу: @${winner}! Забирай свої ${prize} 💵 балів!`);
+            // Якщо переможців більше 5, просто пишемо кількість, щоб не спамити стіною тексту
+            let winnersText = winners.length > 5 ? `${winners.length} щасливчиків` : winners.map(w => `@${w}`).join(', ');
             
-        }, duration * 1000); // Множимо на 1000, бо JavaScript рахує час у мілісекундах
+            participants = [];
+            client.say(channel, `🎉 ЧАС ВИЙШОВ! Банк розпиляли: ${winnersText}! Кожен забрав по ${share} 💵 балів!`);
+            
+        }, duration * 1000); 
     }
 
-    // Команда для глядачів: взяти участь
+    // РЕЄСТРАЦІЯ УЧАСНИКІВ
     if (command === '!го') {
-        if (!giveawayActive) return; // Якщо розіграшу нема, бот мовчить
+        if (!giveawayActive) return; 
         
         if (!participants.includes(sender)) {
             participants.push(sender);
-            // Бот пише, що людина успішно зайшла в розіграш
-            client.say(channel, `@${sender}, ти береш участь! 🎟️`);
+            client.say(channel, `@${sender}, ти в грі! 🎟️ (Шанс: ${winChance}%)`);
         }
     }
 };
