@@ -42,7 +42,7 @@ module.exports = function(client, channel, sender, command, args, db, saveDb, is
 
         // СТАРТ РОЗІГРАШУ
         let amount = parseInt(args[1]);
-        let duration = parseInt(args[2]) || 60; // Час (дефолт 60 сек)
+        let duration = parseInt(args[2]) || 30; // Час (дефолт 30 сек)
         let chance = parseInt(args[3]) || 50;   // Шанс виграшу (дефолт 50%)
 
         if (isNaN(amount) || amount <= 0) {
