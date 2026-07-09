@@ -2,13 +2,38 @@
 const tmi = require('tmi.js');
 const fs = require('fs');
 
-// Вічна пам'ять для Railway (щоб топ не скидався)
-const dbPath = fs.existsSync('/app') ? '/app/data/db.json' : 'db.json';
+// ПАПКА БАЗИ (захищена /data на Railway)
+const dataDir = fs.existsSync('/data') ? '/data' : '.';
+const dbPath = `${dataDir}/db.json`;
 let db = fs.existsSync(dbPath) ? JSON.parse(fs.readFileSync(dbPath, 'utf8')) : {};
 
 function saveDb() { 
     fs.writeFileSync(dbPath, JSON.stringify(db, null, 2)); 
 }
+
+// =====================================================================
+// УЛЬТИМАТИВНИЙ АНТИ-ДУБЛЬ (ЧЕРЕЗ LOCK-ФАЙЛ)
+// =====================================================================
+const lockPath = `${dataDir}/lock.txt`;
+const myBotId = Date.now().toString(); // Унікальний номер цього запуску бота
+
+// Коли новий бот запускається, він записує свій номер у файл
+fs.writeFileSync(lockPath, myBotId, 'utf8');
+
+// Кожні 2 секунди бот перевіряє цей файл
+setInterval(() => {
+    try {
+        if (fs.existsSync(lockPath)) {
+            const currentLock = fs.readFileSync(lockPath, 'utf8');
+            // Якщо номер у файлі змінився (значить Railway запустив НОВОГО бота)
+            if (currentLock !== myBotId) {
+                console.log('💀 Прийшов новий бот! Старий миттєво робить харакірі...');
+                process.exit(0); // Вбиваємо старого намертво!
+            }
+        }
+    } catch (e) {}
+}, 2000); // 2000 мілісекунд = 2 секунди
+// =====================================================================
 
 const client = new tmi.Client({
     options: { debug: false },
@@ -22,7 +47,7 @@ const client = new tmi.Client({
 
 client.connect().catch(console.error);
 
-// --- ПІДКЛЮЧАЄМО ВСІ ТВОЇ ФАЙЛИ З КОМАНДАМИ ---
+// --- ПІДКЛЮЧАЄМО КОМАНДИ ---
 const handlePointsAuto = require('./points_auto.js');
 const handleBaly = require('./baly.js');
 const handleTop = require('./top.js');
@@ -41,44 +66,17 @@ client.on('message', (channel, tags, message, self) => {
     const args = message.trim().split(/\s+/);
     const command = args[0].toLowerCase();
 
-    // 1. Автонарахування балів (працює на кожне повідомлення)
     handlePointsAuto(sender, message, db, saveDb, isBroadcaster);
-
-    // 2. Складні команди (розіграш та фан-команди перевіряють слова всередині своїх файлів)
     handleRozihrash(client, channel, sender, command, args, db, saveDb, isMod);
     handleFunCommands(client, channel, sender, command, args, isMod);
 
-    // 3. Стандартні команди
-    if (command === '!бали' || command === '!baly') {
-        handleBaly(client, channel, sender, args, db);
-    }
-    
-    if (command === '!топ' || command === '!top') {
-        handleTop(client, channel, db);
-    }
-
-    if (command === '!казік' || command === '!kazik') {
-        handleKazik(client, channel, sender, args, db, saveDb);
-    }
-
-    if (command === '!на') {
-        handleNa(client, channel, sender, args, db, saveDb);
-    }
-
-    if (command === '!дати' && isMod) {
-        handleDaty(client, channel, sender, args, db, saveDb);
-    }
+    if (command === '!бали' || command === '!baly') handleBaly(client, channel, sender, args, db);
+    if (command === '!топ' || command === '!top') handleTop(client, channel, db);
+    if (command === '!казік' || command === '!kazik') handleKazik(client, channel, sender, args, db, saveDb);
+    if (command === '!на') handleNa(client, channel, sender, args, db, saveDb);
+    if (command === '!дати' && isMod) handleDaty(client, channel, sender, args, db, saveDb);
 });
 
-// =====================================================================
-// ЖОРСТКИЙ АНТИ-ДУБЛЬ: Миттєве вимкнення без очікування
-// =====================================================================
-process.on('SIGTERM', () => {
-    console.log('🔄 Оновлення коду! Миттєво вбиваємо старого бота...');
-    process.exit(0); // Тупо вимикаємо процес цієї ж секунди
-});
-
-process.on('SIGINT', () => {
-    console.log('🛑 Ручна зупинка бота...');
-    process.exit(0);
-});
+// Резервний анти-дубль від самого Railway про всяк випадок
+process.on('SIGTERM', () => process.exit(0));
+process.on('SIGINT', () => process.exit(0));
