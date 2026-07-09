@@ -85,7 +85,7 @@ client.on('message', (channel, tags, message, self) => {
     const args = message.trim().split(/\s+/);
     const command = args[0].toLowerCase();
 
-    handlePointsAuto(sender, message, db, saveDb, isBroadcaster);
+// handlePointsAuto(sender, message, db, saveDb, isBroadcaster);
     handleRozihrash(client, channel, sender, command, args, db, saveDb, isMod);
     handleFunCommands(client, channel, sender, command, args, isMod);
 
