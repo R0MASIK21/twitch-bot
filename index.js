@@ -1,47 +1,84 @@
 // @ts-nocheck
 const tmi = require('tmi.js');
 const fs = require('fs');
-const http = require('http');
 
-let db = fs.existsSync('db.json') ? JSON.parse(fs.readFileSync('db.json', 'utf8')) : {};
-function saveDb() { fs.writeFileSync('db.json', JSON.stringify(db, null, 2)); }
+// Вічна пам'ять для Railway (щоб топ не скидався)
+const dbPath = fs.existsSync('/app') ? '/app/data/db.json' : 'db.json';
+let db = fs.existsSync(dbPath) ? JSON.parse(fs.readFileSync(dbPath, 'utf8')) : {};
 
-http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-    res.end(JSON.stringify(db, null, 2));
-}).listen(process.env.PORT || 3000);
+function saveDb() { 
+    fs.writeFileSync(dbPath, JSON.stringify(db, null, 2)); 
+}
 
 const client = new tmi.Client({
-    identity: { 
+    options: { debug: false },
+    connection: { reconnect: true, secure: true },
+    identity: {
         username: 'r0masik_bot', 
-        password: 'oauth:v8wefxwrmrp9aee3774ogexiijsl6l' // <-- Твій новий токен тут
+        password: 'oauth:v8wefxwrmrp9aee3774ogexiijsl6l' 
     },
-    channels: [ 'r0masik_' ]
+    channels: ['r0masik_']
 });
 
 client.connect().catch(console.error);
 
-client.on('message', async (channel, tags, message, self) => {
+// --- ПІДКЛЮЧАЄМО ВСІ ТВОЇ ФАЙЛИ З КОМАНДАМИ ---
+const handlePointsAuto = require('./points_auto.js');
+const handleBaly = require('./baly.js');
+const handleTop = require('./top.js');
+const handleKazik = require('./kazik.js');
+const handleNa = require('./na.js');
+const handleDaty = require('./daty.js');
+const handleRozihrash = require('./rozihrash.js');
+const handleFunCommands = require('./fun_commands.js');
+
+client.on('message', (channel, tags, message, self) => {
     if (self) return;
-    const sender = tags.username.toLowerCase();
-    const args = message.trim().split(' ');
+
+    const sender = tags.username;
+    const isBroadcaster = tags.badges?.broadcaster === '1';
+    const isMod = tags.mod || isBroadcaster;
+    const args = message.trim().split(/\s+/);
     const command = args[0].toLowerCase();
-    const isMod = tags.mod || (tags.badges && tags.badges.broadcaster === '1');
-    const isBroadcaster = tags.badges && tags.badges.broadcaster === '1';
 
-    // 1. Авто-нарахування (+5 балів за повідомлення)
-    require('./points_auto.js')(sender, message, db, saveDb, isBroadcaster);
+    // 1. Автонарахування балів (працює на кожне повідомлення)
+    handlePointsAuto(sender, message, db, saveDb, isBroadcaster);
 
-    // 2. Окремі файли для кожної команди
-    if (command === '!бали') require('./baly.js')(client, channel, sender, db);
-    if (command === '!топ') require('./top.js')(client, channel, db);
-    if (command === '!казік' || command === '!рулетка') require('./kazik.js')(client, channel, sender, args, db, saveDb);
-    if (command === '!на') require('./na.js')(client, channel, sender, args, db, saveDb);
+    // 2. Складні команди (розіграш та фан-команди перевіряють слова всередині своїх файлів)
+    handleRozihrash(client, channel, sender, command, args, db, saveDb, isMod);
+    handleFunCommands(client, channel, sender, command, args, isMod);
+
+    // 3. Стандартні команди
+    if (command === '!бали' || command === '!baly') {
+        handleBaly(client, channel, sender, args, db);
+    }
     
-    // Адмінка
-    if (command === '!дати' && isMod) require('./daty.js')(client, channel, args, db, saveDb);
-    if (['!розіграш', '!го'].includes(command)) require('./rozihrash.js')(client, channel, sender, command, args, db, saveDb, isMod);
+    if (command === '!топ' || command === '!top') {
+        handleTop(client, channel, db);
+    }
 
-    // Фан-команди (Пеніс, Вкрасти, Пиво)
-    if (['!пеніс', '!вкрасти', '!пиво'].includes(command)) require('./fun_commands.js')(client, channel, sender, command, args, db, saveDb);
+    if (command === '!казік' || command === '!kazik') {
+        handleKazik(client, channel, sender, args, db, saveDb);
+    }
+
+    if (command === '!на') {
+        handleNa(client, channel, sender, args, db, saveDb);
+    }
+
+    if (command === '!дати' && isMod) {
+        handleDaty(client, channel, sender, args, db, saveDb);
+    }
+});
+
+// =====================================================================
+// АНТИ-ДУБЛЬ: Миттєве вимкнення старого бота при оновленні на Railway
+// =====================================================================
+process.on('SIGTERM', () => {
+    console.log('🔄 Railway почав оновлення. Відключаємо старого бота, щоб не було дублів...');
+    client.disconnect().then(() => process.exit(0));
+});
+
+process.on('SIGINT', () => {
+    console.log('🛑 Ручна зупинка бота...');
+    client.disconnect().then(() => process.exit(0));
 });
