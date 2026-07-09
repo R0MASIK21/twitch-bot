@@ -7,25 +7,34 @@ const dataDir = fs.existsSync('/data') ? '/data' : '.';
 const dbPath = `${dataDir}/db.json`;
 
 // =====================================================================
-// БРОНЬОВАНИЙ ЧИТАЧ БАЗИ ДАНИХ (Більше ніяких крашів через пустий JSON)
+// 1. БЕЗПЕЧНЕ ЧИТАННЯ (З БЕКАПОМ)
 // =====================================================================
 let db = {};
 try {
     if (fs.existsSync(dbPath)) {
         let fileData = fs.readFileSync(dbPath, 'utf8').trim();
-        // Перевіряємо, чи файл не пустий, перед тим як його читати
         if (fileData.length > 0) {
             db = JSON.parse(fileData);
         }
     }
 } catch (err) {
-    console.error("⚠️ База даних була пошкоджена або порожня. Запускаємо з чистого листа!", err.message);
-    db = {}; // Якщо помилка - просто робимо пусту базу і не вмираємо
+    console.error("🚨 БАЗУ ПОШКОДЖЕНО ПРИ ПЕРЕЗАПУСКУ!", err.message);
+    // Якщо файл зламався, не затираємо його, а робимо копію, щоб можна було врятувати!
+    if (fs.existsSync(dbPath)) {
+        fs.copyFileSync(dbPath, dbPath + '.backup_' + Date.now());
+    }
+    db = {}; 
 }
 
+// =====================================================================
+// 2. БЕЗПЕЧНЕ ЗБЕРЕЖЕННЯ (ATOMIC WRITE - ЗАХИСТ ВІД ОБНУЛЕННЯ)
+// =====================================================================
 function saveDb() { 
     try {
-        fs.writeFileSync(dbPath, JSON.stringify(db, null, 2)); 
+        // Спочатку пишемо у тимчасовий файл
+        fs.writeFileSync(dbPath + '.tmp', JSON.stringify(db, null, 2)); 
+        // Миттєво перейменовуємо (Railway не зможе перервати цей процес на половині)
+        fs.renameSync(dbPath + '.tmp', dbPath);
     } catch (err) {
         console.error("❌ Помилка запису бази:", err.message);
     }
@@ -66,7 +75,6 @@ const client = new tmi.Client({
 
 client.connect().catch(console.error);
 
-// --- ПІДКЛЮЧАЄМО КОМАНДИ ---
 const handlePointsAuto = require('./points_auto.js');
 const handleBaly = require('./baly.js');
 const handleTop = require('./top.js');
@@ -85,7 +93,10 @@ client.on('message', (channel, tags, message, self) => {
     const args = message.trim().split(/\s+/);
     const command = args[0].toLowerCase();
 
-// handlePointsAuto(sender, message, db, saveDb, isBroadcaster);
+    // ВИМКНЕНО бали за повідомлення (як ти і просив у минулому повідомленні)
+    // Якщо захочеш повернути - просто прибери два слеші (//) перед наступним рядком
+    // handlePointsAuto(sender, message, db, saveDb, isBroadcaster);
+    
     handleRozihrash(client, channel, sender, command, args, db, saveDb, isMod);
     handleFunCommands(client, channel, sender, command, args, isMod);
 
@@ -96,5 +107,6 @@ client.on('message', (channel, tags, message, self) => {
     if (command === '!дати' && isMod) handleDaty(client, channel, sender, args, db, saveDb);
 });
 
+// Додатковий захист при вимкненні сервера
 process.on('SIGTERM', () => process.exit(0));
 process.on('SIGINT', () => process.exit(0));
