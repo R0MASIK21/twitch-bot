@@ -1,8 +1,51 @@
 let giveawayActive = false;
 let participants = [];
 let prize = 0;
-let winChance = 50;
 let activeTimers = []; 
+
+// Функція для фіналу розіграшу (вибирає переможців і ділить банк)
+function finishGiveaway(client, channel, db, saveDb) {
+    if (participants.length === 0) {
+        client.say(channel, "⏱️ Розіграш завершено! Але ніхто так і не взяв участь 😔");
+        return;
+    }
+
+    // 15% шанс на "Джекпот" (1-2 переможці), 85% шанс на "Звичайний" (до 10 переможців)
+    let isJackpot = (Math.random() * 100) <= 15;
+    
+    // Якщо джекпот — вибираємо 1 або 2 людей. Якщо ні — до 10 людей.
+    let winnersCount = isJackpot ? (Math.random() < 0.5 ? 1 : 2) : 10;
+    
+    // Якщо учасників менше, ніж бот захотів вибрати, то виграють усі, хто є
+    winnersCount = Math.min(winnersCount, participants.length);
+
+    // Перемішуємо список учасників, як колоду карт
+    let shuffled = [...participants];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    
+    // Беремо перших щасливчиків після перемішування
+    let winners = shuffled.slice(0, winnersCount);
+    
+    // Ділимо банк на кількість переможців
+    let share = Math.floor(prize / winners.length);
+
+    for (let w of winners) {
+        db[w] = (db[w] || 0) + share;
+    }
+    saveDb();
+
+    let winnersText = winners.map(w => `@${w}`).join(', ');
+
+    // Видаємо повідомлення залежно від того, як випало
+    if (isJackpot) {
+        client.say(channel, `🎰 ДЖЕКПОТ! Банк не ділиться на натовп! ${winnersText} забирає весь куш: по ${share} 💵 балів! 🔥`);
+    } else {
+        client.say(channel, `🎉 ЧАС ВИЙШОВ! Банк розпиляли між ${winners.length} учасниками: ${winnersText}! Кожен забрав по ${share} 💵!`);
+    }
+}
 
 module.exports = function(client, channel, sender, command, args, db, saveDb, isMod) {
     
@@ -18,38 +61,17 @@ module.exports = function(client, channel, sender, command, args, db, saveDb, is
             activeTimers = [];
             giveawayActive = false;
 
-            if (participants.length === 0) {
-                return client.say(channel, "Розіграш зупинено. Ніхто не брав участь 😔");
-            }
-            
-            let winners = participants.filter(() => (Math.random() * 100) <= winChance);
-            
-            if (winners.length === 0) {
-                participants = [];
-                return client.say(channel, `🛑 Розіграш зупинено! Ніхто не зміг виграти (шанс був ${winChance}%). Приз згорів! 🔥`);
-            }
-
-            let share = Math.floor(prize / winners.length);
-            for (let w of winners) {
-                db[w] = (db[w] || 0) + share;
-            }
-            saveDb();
-            
-            let winnersText = winners.length > 5 ? `${winners.length} щасливчиків` : winners.map(w => `@${w}`).join(', ');
-            participants = []; 
-            return client.say(channel, `🛑 Стоп! Переможці: ${winnersText}! Кожен отримує по ${share} 💵 балів!`);
+            // Викликаємо фінал достроково
+            return finishGiveaway(client, channel, db, saveDb);
         }
 
         // СТАРТ РОЗІГРАШУ
         let amount = parseInt(args[1]);
         let duration = parseInt(args[2]) || 30; // Дефолт 30 секунд
-        let chance = parseInt(args[3]) || 50;   
 
         if (isNaN(amount) || amount <= 0) {
-            return client.say(channel, "Формат: !розіграш [сума] [секунди] [шанс%]. Наприклад: !розіграш 1000 або !розіграш 1000 60");
+            return client.say(channel, "Формат: !розіграш [сума] або !розіграш [сума] [секунди]");
         }
-        if (chance < 1) chance = 1;
-        if (chance > 100) chance = 100;
 
         if (giveawayActive) {
             return client.say(channel, "Розіграш вже йде!");
@@ -58,36 +80,31 @@ module.exports = function(client, channel, sender, command, args, db, saveDb, is
         giveawayActive = true;
         participants = [];
         prize = amount;
-        winChance = chance;
         activeTimers = []; 
         
-        // Стартове повідомлення, як ти просив
-        client.say(channel, `🎁 Банк: ${prize} 💵! До кінця розіграшу залишилось ${duration} секунд! Встигни написати !го (Шанс: ${winChance}%)`);
+        // ПРИБРАВ текст про шанси! Тільки банк і час.
+        client.say(channel, `🎁 Банк: ${prize} 💵! До кінця розіграшу залишилось ${duration} секунд! Встигни написати !го`);
 
         // --- ВІДЛІК У ЧАТ ---
         
-        // Нагадування за 30 секунд (тільки якщо ставиш час більше 30 секунд, наприклад 60)
         if (duration > 30) {
             activeTimers.push(setTimeout(() => {
                 if (giveawayActive) client.say(channel, `⏳ До кінця розіграшу залишилось 30 секунд! Встигни написати !го`);
             }, (duration - 30) * 1000));
         }
 
-        // Нагадування за 20 секунд до кінця
         if (duration >= 20) {
             activeTimers.push(setTimeout(() => {
                 if (giveawayActive) client.say(channel, `⏳ До кінця розіграшу залишилось 20 секунд!`);
             }, (duration - 20) * 1000));
         }
         
-        // Нагадування за 10 секунд до кінця
         if (duration >= 10) {
             activeTimers.push(setTimeout(() => {
-                if (giveawayActive) client.say(channel, `🚨 Останні 10 секунд! Шанс виграти — ${winChance}%! Пиши !го`);
+                if (giveawayActive) client.say(channel, `🚨 Останні 10 секунд! Пиши !го`);
             }, (duration - 10) * 1000));
         }
 
-        // Нагадування за 5 секунд до кінця
         if (duration >= 5) {
             activeTimers.push(setTimeout(() => {
                 if (giveawayActive) client.say(channel, `🔥 5 секунд!`);
@@ -99,27 +116,8 @@ module.exports = function(client, channel, sender, command, args, db, saveDb, is
             if (!giveawayActive) return; 
             giveawayActive = false;
             
-            if (participants.length === 0) {
-                return client.say(channel, "⏱️ Час вийшов! Але ніхто так і не взяв участь 😔");
-            }
-
-            let winners = participants.filter(() => (Math.random() * 100) <= winChance);
-
-            if (winners.length === 0) {
-                participants = [];
-                return client.say(channel, `⏱️ Час вийшов! Халепа, ніхто не виграв (шанс був ${winChance}%). Всі ${prize} 💵 згоріли! 🔥`);
-            }
-
-            let share = Math.floor(prize / winners.length);
-            for (let w of winners) {
-                db[w] = (db[w] || 0) + share;
-            }
-            saveDb();
-            
-            let winnersText = winners.length > 5 ? `${winners.length} щасливчиків` : winners.map(w => `@${w}`).join(', ');
-            
-            participants = [];
-            client.say(channel, `🎉 ЧАС ВИЙШОВ! Банк розпиляли: ${winnersText}! Кожен забрав по ${share} 💵 балів!`);
+            // Викликаємо нашу круту функцію з джекпотом
+            finishGiveaway(client, channel, db, saveDb);
             
         }, duration * 1000)); 
     }
