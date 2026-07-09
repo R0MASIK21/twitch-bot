@@ -5,36 +5,55 @@ const fs = require('fs');
 // ПАПКА БАЗИ (захищена /data на Railway)
 const dataDir = fs.existsSync('/data') ? '/data' : '.';
 const dbPath = `${dataDir}/db.json`;
-let db = fs.existsSync(dbPath) ? JSON.parse(fs.readFileSync(dbPath, 'utf8')) : {};
+
+// =====================================================================
+// БРОНЬОВАНИЙ ЧИТАЧ БАЗИ ДАНИХ (Більше ніяких крашів через пустий JSON)
+// =====================================================================
+let db = {};
+try {
+    if (fs.existsSync(dbPath)) {
+        let fileData = fs.readFileSync(dbPath, 'utf8').trim();
+        // Перевіряємо, чи файл не пустий, перед тим як його читати
+        if (fileData.length > 0) {
+            db = JSON.parse(fileData);
+        }
+    }
+} catch (err) {
+    console.error("⚠️ База даних була пошкоджена або порожня. Запускаємо з чистого листа!", err.message);
+    db = {}; // Якщо помилка - просто робимо пусту базу і не вмираємо
+}
 
 function saveDb() { 
-    fs.writeFileSync(dbPath, JSON.stringify(db, null, 2)); 
+    try {
+        fs.writeFileSync(dbPath, JSON.stringify(db, null, 2)); 
+    } catch (err) {
+        console.error("❌ Помилка запису бази:", err.message);
+    }
 }
 
 // =====================================================================
 // УЛЬТИМАТИВНИЙ АНТИ-ДУБЛЬ (ЧЕРЕЗ LOCK-ФАЙЛ)
 // =====================================================================
 const lockPath = `${dataDir}/lock.txt`;
-const myBotId = Date.now().toString(); // Унікальний номер цього запуску бота
+const myBotId = Date.now().toString(); 
 
-// Коли новий бот запускається, він записує свій номер у файл
-fs.writeFileSync(lockPath, myBotId, 'utf8');
+try { fs.writeFileSync(lockPath, myBotId, 'utf8'); } catch(e) {}
 
-// Кожні 2 секунди бот перевіряє цей файл
 setInterval(() => {
     try {
         if (fs.existsSync(lockPath)) {
             const currentLock = fs.readFileSync(lockPath, 'utf8');
-            // Якщо номер у файлі змінився (значить Railway запустив НОВОГО бота)
             if (currentLock !== myBotId) {
                 console.log('💀 Прийшов новий бот! Старий миттєво робить харакірі...');
-                process.exit(0); // Вбиваємо старого намертво!
+                process.exit(0); 
             }
         }
     } catch (e) {}
-}, 2000); // 2000 мілісекунд = 2 секунди
-// =====================================================================
+}, 2000); 
 
+// =====================================================================
+// ПІДКЛЮЧЕННЯ БОТА
+// =====================================================================
 const client = new tmi.Client({
     options: { debug: false },
     connection: { reconnect: true, secure: true },
@@ -77,6 +96,5 @@ client.on('message', (channel, tags, message, self) => {
     if (command === '!дати' && isMod) handleDaty(client, channel, sender, args, db, saveDb);
 });
 
-// Резервний анти-дубль від самого Railway про всяк випадок
 process.on('SIGTERM', () => process.exit(0));
 process.on('SIGINT', () => process.exit(0));
