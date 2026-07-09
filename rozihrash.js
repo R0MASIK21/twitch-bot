@@ -89,19 +89,19 @@ module.exports = function(client, channel, sender, command, args, db, saveDb, is
         
         if (duration > 30) {
             activeTimers.push(setTimeout(() => {
-                if (giveawayActive) client.say(channel, `⏳ До кінця розіграшу залишилось 30 секунд! Встигни написати !го`);
+                if (giveawayActive) client.say(channel, `⏳ До кінця розіграшу залишилось 3 0 секунд! Встигни написати !го`);
             }, (duration - 30) * 1000));
         }
 
         if (duration >= 20) {
             activeTimers.push(setTimeout(() => {
-                if (giveawayActive) client.say(channel, `⏳ До кінця розіграшу залишилось 20 секунд!`);
+                if (giveawayActive) client.say(channel, `⏳ До кінця розіграшу залишилось 2 0 секунд!`);
             }, (duration - 20) * 1000));
         }
         
         if (duration >= 10) {
             activeTimers.push(setTimeout(() => {
-                if (giveawayActive) client.say(channel, `🚨 Останні 10 секунд! Пиши !го`);
+                if (giveawayActive) client.say(channel, `🚨 Останні 1 0 секунд! Пиши !го`);
             }, (duration - 10) * 1000));
         }
 
