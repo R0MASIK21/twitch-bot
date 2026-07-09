@@ -104,7 +104,7 @@ client.on('message', (channel, tags, message, self) => {
     if (command === '!топ' || command === '!top') handleTop(client, channel, db);
     if (command === '!казік' || command === '!kazik') handleKazik(client, channel, sender, args, db, saveDb);
     if (command === '!на') handleNa(client, channel, sender, args, db, saveDb);
-    if (command === '!дати' && isMod) handleDaty(client, channel, sender, args, db, saveDb);
+    if (command === '!дати' && isMod) handleDaty(client, channel, sender, args, db, saveDb, config);
 });
 
 // Додатковий захист при вимкненні сервера
